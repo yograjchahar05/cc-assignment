@@ -1,0 +1,18 @@
+# Training configuration for Sequence-Level Knowledge Distillation
+# EleutherAI/pythia-70m fine-tuning on CPU
+
+seed: 42
+learning_rate: 5.0e-5
+batch_size: 8
+num_epochs: 3
+max_seq_length: 128
+
+model_name_or_path: "EleutherAI/pythia-70m"
+train_data_path: "datasets/v1/train.jsonl"
+output_dir: "models/v1"
+
+# Pinned library versions
+library_versions:
+  python: "3.11.9"
+  torch: "2.15.0"
+  transformers: "4.49.0"

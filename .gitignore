@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# PyTorch / HuggingFace Model Weights (Store in Object Storage & Release assets only)
+*.pt
+*.bin
+*.safetensors
+*.pth
+*.onnx
+models/v1/model.safetensors
+models/v2/model.safetensors
+models/v1/pytorch_model.bin
+models/v2/pytorch_model.bin
+
+# Test and Linting caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment and secrets
+.env
+*.env
+*.pem
+*.key
+
+# OS artifacts
+.DS_Store
+Thumbs.db

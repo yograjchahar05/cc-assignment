@@ -99,8 +99,8 @@ jobs:
             echo "DEMO MODE: Deliberately loading untrained baseline to demonstrate quality gate failure"
             python -c "from transformers import AutoModelForCausalLM, AutoTokenizer; m = AutoModelForCausalLM.from_pretrained('EleutherAI/pythia-70m'); t = AutoTokenizer.from_pretrained('EleutherAI/pythia-70m'); m.save_pretrained('models/v1'); t.save_pretrained('models/v1')"
           else
-            echo "Downloading trained student model from latest release..."
-            gh release download v1.0.0 --dir models/v1 || gh release download --dir models/v1 || echo "Release download fallback to local"
+            echo "Downloading trained student model from release v1.0.0..."
+            gh release download v1.0.0 --dir models/v1 --clobber
           fi
 
       - name: Run Evaluation on validation.jsonl

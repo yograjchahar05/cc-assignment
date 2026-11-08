@@ -190,7 +190,7 @@ def parse(req: ParseRequest, response: Response):
             headers=response.headers
         )
 
-    prompt = f"Command: {req.text}\nJSON:"
+    prompt = f"Command: {req.text}\nJSON: "
     inputs = tokenizer(prompt, return_tensors="pt")
 
     with torch.no_grad():
@@ -198,6 +198,7 @@ def parse(req: ParseRequest, response: Response):
             **inputs,
             max_new_tokens=max_new_tokens,
             pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id,
             do_sample=False
         )
 
@@ -207,8 +208,12 @@ def parse(req: ParseRequest, response: Response):
     else:
         raw_output = generated_text[len(prompt):].strip()
 
-    # If output contains newline after JSON, cut at first closing brace
-    if "}" in raw_output:
+    # Extract JSON substring
+    if "{" in raw_output and "}" in raw_output:
+        brace_start = raw_output.index("{")
+        brace_end = raw_output.rindex("}") + 1
+        raw_output = raw_output[brace_start:brace_end]
+    elif "}" in raw_output:
         raw_output = raw_output[:raw_output.index("}") + 1]
 
     is_valid, parsed_data = validate_prediction(raw_output)

@@ -35,3 +35,4 @@ up:
 
 down:
 	k3d cluster delete cloud-cluster || true
+

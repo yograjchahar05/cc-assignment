@@ -1,0 +1,10 @@
+{
+  "input_records": 3000,
+  "rejected_a_invalid_json": 4,
+  "rejected_b_invalid_keys": 5,
+  "rejected_c_invalid_intent": 3,
+  "rejected_d_invalid_slots": 3,
+  "rejected_e_duplicates": 50,
+  "records_kept": 2935,
+  "checksum_sha256": "6f060da2f709e96cd4d503f86a3980894b52a1a5f84798ae5f8035abd03db2a4"
+}

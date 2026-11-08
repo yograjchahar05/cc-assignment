@@ -63,3 +63,4 @@ spec:
                 secretKeyRef:
                   name: s3-credentials
                   key: AWS_SECRET_ACCESS_KEY
+

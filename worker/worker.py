@@ -14,10 +14,10 @@ Reads environment variables:
 Each worker takes commands whose line index % SHARD_COUNT == SHARD_INDEX.
 Writes {"id": "...", "text": "...", "teacher_raw": "..."} to shard-{SHARD_INDEX}.jsonl
 """
-import os
-import sys
 import json
 import logging
+import os
+import sys
 import requests
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -33,23 +33,32 @@ def get_env_int(key, default):
         sys.exit(f"Environment variable {key} must be an integer, got: {val}")
 
 
-def query_teacher(teacher_url, model, prompt_template, command_text, timeout=120):
+def query_teacher(teacher_url, model, prompt_template, command_text, timeout=60):
     """Query the Ollama teacher model with temperature=0 and seed=42."""
-    full_prompt = f"{prompt_template}\n\nCommand: {command_text}\nJSON:"
     payload = {
         "model": model,
-        "prompt": full_prompt,
+        "messages": [
+            {"role": "system", "content": prompt_template},
+            {"role": "user", "content": f"Command: {command_text}\nJSON:"}
+        ],
         "stream": False,
         "options": {
             "temperature": 0.0,
-            "seed": 42
+            "seed": 42,
+            "num_predict": 40,
+            "stop": ["\n\n", "Command:", "\nCommand", "}\n"],
+            "num_thread": 8
         }
     }
-    url = f"{teacher_url.rstrip('/')}/api/generate"
+    url = f"{teacher_url.rstrip('/')}/api/chat"
     resp = requests.post(url, json=payload, timeout=timeout)
     resp.raise_for_status()
-    data = resp.json()
-    return data.get("response", "")
+    raw = resp.json().get("message", {}).get("content", "").strip()
+    if raw.startswith("{") and not raw.endswith("}"):
+        raw = raw + "}"
+    if "}" in raw:
+        raw = raw[:raw.index("}") + 1]
+    return raw
 
 
 def upload_to_s3(endpoint, bucket, key, local_file):
@@ -142,7 +151,7 @@ def main():
             out_f.write(json.dumps(record) + "\n")
             out_f.flush()
 
-            if count % 100 == 0 or count == len(assigned_items):
+            if count % 50 == 0 or count == len(assigned_items):
                 logging.info(f"Worker {shard_index}: processed {count}/{len(assigned_items)}")
 
     logging.info(f"Worker {shard_index}: finished writing to {output_path}")

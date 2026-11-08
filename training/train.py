@@ -19,7 +19,13 @@ import yaml
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_linear_schedule_with_warmup
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# Unbuffered logging for real-time visibility
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(line_buffering=True)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 
 
 def set_seed(seed: int):
@@ -31,43 +37,31 @@ def set_seed(seed: int):
 
 
 class DistillationDataset(Dataset):
-    def __init__(self, records, tokenizer, max_seq_length=128):
+    def __init__(self, records, tokenizer, max_seq_length=64):
         self.examples = []
         for r in records:
             cmd = r.get("text", "")
-            # teacher_raw can be a JSON string or already parsed dict
             raw = r.get("teacher_raw")
             if isinstance(raw, dict):
                 raw_json = json.dumps(raw)
             else:
                 raw_json = str(raw).strip()
 
-            prompt_text = f"Command: {cmd}\nJSON:"
-            full_text = f"{prompt_text} {raw_json}"
+            prompt_text = f"Command: {cmd}\nJSON: "
+            target_text = f"{raw_json}{tokenizer.eos_token}"
 
-            prompt_enc = tokenizer(prompt_text, add_special_tokens=True)
-            prompt_len = len(prompt_enc["input_ids"])
+            prompt_ids = tokenizer.encode(prompt_text, add_special_tokens=True)
+            target_ids = tokenizer.encode(target_text, add_special_tokens=False)
 
-            full_enc = tokenizer(
-                full_text,
-                truncation=True,
-                max_length=max_seq_length,
-                padding="max_length",
-                return_tensors="pt"
-            )
+            ids = prompt_ids + target_ids
+            labels = [-100] * len(prompt_ids) + target_ids
 
-            input_ids = full_enc["input_ids"].squeeze(0)
-            attention_mask = full_enc["attention_mask"].squeeze(0)
-
-            # Mask out the prompt tokens in labels so loss is only computed on the JSON target
-            labels = input_ids.clone()
-            labels[:prompt_len] = -100
-            # Also ignore padding tokens in loss calculation
-            labels[attention_mask == 0] = -100
+            if len(ids) > max_seq_length:
+                ids = ids[:max_seq_length]
+                labels = labels[:max_seq_length]
 
             self.examples.append({
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
+                "input_ids": ids,
                 "labels": labels
             })
 
@@ -76,6 +70,32 @@ class DistillationDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.examples[idx]
+
+
+def collate_fn(batch, pad_token_id=0):
+    """Dynamic padding to max length in the batch."""
+    max_len = max(len(item["input_ids"]) for item in batch)
+    input_ids_list = []
+    attention_mask_list = []
+    labels_list = []
+
+    for item in batch:
+        cur_len = len(item["input_ids"])
+        pad_len = max_len - cur_len
+
+        input_ids = item["input_ids"] + [pad_token_id] * pad_len
+        attention_mask = [1] * cur_len + [0] * pad_len
+        labels = item["labels"] + [-100] * pad_len
+
+        input_ids_list.append(input_ids)
+        attention_mask_list.append(attention_mask)
+        labels_list.append(labels)
+
+    return {
+        "input_ids": torch.tensor(input_ids_list, dtype=torch.long),
+        "attention_mask": torch.tensor(attention_mask_list, dtype=torch.long),
+        "labels": torch.tensor(labels_list, dtype=torch.long)
+    }
 
 
 def compute_dir_sha256(directory, output_file):
@@ -100,8 +120,12 @@ def compute_dir_sha256(directory, output_file):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fine-tune pythia-70m with sequence-level KD.")
-    parser.add_argument("--config", default="training/config.yaml", help="Path to configuration yaml")
+    # Set PyTorch thread count to physical cores to maximize cache locality
+    threads = min(os.cpu_count() or 4, 4)
+    torch.set_num_threads(threads)
+
+    parser = argparse.ArgumentParser(description="Train Pythia-70M student via sequence KD")
+    parser.add_argument("--config", default="training/config.yaml", help="Path to training config.yaml")
     parser.add_argument("--subset", type=int, default=None, help="Train on first N examples (e.g. 50)")
     parser.add_argument("--output_dir", default=None, help="Override output directory")
     parser.add_argument("--epochs", type=int, default=None, help="Override number of epochs")
@@ -122,7 +146,7 @@ def main():
     num_epochs = args.epochs if args.epochs is not None else (int(os.environ.get("EPOCHS")) if os.environ.get("EPOCHS") else config.get("num_epochs", 3))
     batch_size = config.get("batch_size", 8)
     learning_rate = float(config.get("learning_rate", 5.0e-5))
-    max_seq_length = config.get("max_seq_length", 128)
+    max_seq_length = config.get("max_seq_length", 64)
     model_name = config.get("model_name_or_path", "EleutherAI/pythia-70m")
     train_path = config.get("train_data_path", "datasets/v1/train.jsonl")
 
@@ -148,17 +172,18 @@ def main():
     else:
         logging.info(f"Using {len(records)} records for training (capped at 1,500)")
 
-    # Load tokenizer and model
-    logging.info(f"Loading model and tokenizer: {model_name}")
+    # Load tokenizer and model in float32 for CPU stability
+    logging.info(f"Loading model and tokenizer: {model_name} (dtype=float32)")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.float32)
     model.train()
 
     dataset = DistillationDataset(records, tokenizer, max_seq_length=max_seq_length)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    pad_id = tokenizer.pad_token_id or 0
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=lambda b: collate_fn(b, pad_id))
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     total_steps = len(dataloader) * num_epochs
@@ -169,7 +194,7 @@ def main():
     os.makedirs("training", exist_ok=True)
 
     loss_records = []
-    logging.info("Starting training loop on CPU...")
+    logging.info(f"Starting training loop on CPU ({len(dataloader)} batches/epoch, total steps={total_steps})...")
     for epoch in range(1, num_epochs + 1):
         epoch_loss = 0.0
         steps = 0
@@ -190,7 +215,7 @@ def main():
             epoch_loss += loss.item()
             steps += 1
 
-            if step % 25 == 0 or step == len(dataloader):
+            if step % 10 == 0 or step == len(dataloader):
                 logging.info(f"Epoch {epoch}/{num_epochs} | Step {step}/{len(dataloader)} | Batch Loss: {loss.item():.4f}")
 
         avg_loss = epoch_loss / max(steps, 1)

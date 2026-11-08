@@ -1,0 +1,9 @@
+{
+  "total_requests": 50,
+  "successful_requests": 50,
+  "total_duration_sec": 22.24,
+  "avg_latency_ms": 444.73,
+  "peak_memory_mib": 646.41,
+  "memory_limit_mib": 1024,
+  "oom_killed": false
+}

@@ -43,3 +43,4 @@ Every piece of AI-suggested code, configuration, and data was rigorously validat
    - Model predictions were evaluated strictly using the project evaluation harness `tools/score.py` against `data/validation.jsonl`, verifying JSON validity, intent accuracy, slot extraction, and full-frame accuracy.
 5. **Secret Scanning**:
    - Validated that no API keys, credentials, or personal secrets were committed using `gitleaks` and automated git checks.
+

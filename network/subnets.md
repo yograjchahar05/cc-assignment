@@ -87,3 +87,4 @@ NACL rules are processed sequentially in ascending numerical order (lowest rule 
 Because `198.51.100.0/24` is a subset of `0.0.0.0/0` (anywhere):
 - If the explicit DENY rule for `198.51.100.0/24` were placed with a rule number higher than the ALLOW rule for TCP 80/443 from `0.0.0.0/0`, inbound web traffic originating from `198.51.100.0/24` would hit the general ALLOW rule first and be admitted.
 - To enforce blocking of all traffic from `198.51.100.0/24`—even on web ports 80 and 443—the DENY rule must be assigned a lower rule number than the broad `0.0.0.0/0` allow rules. This guarantees that any packet with a source IP within `198.51.100.0/24` matches the DENY rule immediately and is dropped before reaching the subsequent allow rules.
+

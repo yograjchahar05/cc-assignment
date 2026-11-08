@@ -123,3 +123,4 @@ spec:
                 name: command-parser-service
                 port:
                   number: 8000
+

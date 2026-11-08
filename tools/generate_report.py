@@ -46,7 +46,7 @@ class NumberedCanvas(canvas.Canvas):
         self.setLineWidth(0.5)
         self.line(36, 38, 559, 38)
         
-        self.drawString(36, 26, "Author: Yograj Chahar | Repository: https://github.com/yograjchahar05/cc-assignment.git")
+        self.drawString(36, 26, "Author: Yash Chahar | Repository: https://github.com/yograjchahar05/cc-assignment.git")
         page_str = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(559, 26, page_str)
         self.restoreState()
@@ -174,7 +174,7 @@ def build_pdf(filename="report/report.pdf"):
     story.append(Paragraph("<b>End-to-End Sequence-Level Knowledge Distillation, Containerized FastAPI Inference, and Kubernetes Deployment</b>", subtitle_style))
     
     meta_data = [
-        [Paragraph("<b>Student:</b> Yograj Chahar", table_cell),
+        [Paragraph("<b>Student:</b> Yash Chahar", table_cell),
          Paragraph("<b>GitHub:</b> yograjchahar05/cc-assignment", table_cell),
          Paragraph("<b>Release Tag:</b> v1.0.0 (Asset verified)", table_cell),
          Paragraph("<b>Final Commit:</b> final", table_cell)]

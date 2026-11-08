@@ -2,7 +2,7 @@
 
 **End-to-End Sequence-Level Knowledge Distillation, Containerized FastAPI Inference, and Kubernetes Deployment**
 
-- **Student:** Yograj Chahar
+- **Student:** Yash Chahar (230103020)
 - **GitHub Repository:** [yograjchahar05/cc-assignment](https://github.com/yograjchahar05/cc-assignment)
 - **Model Release:** [`v1.0.0`](https://github.com/yograjchahar05/cc-assignment/releases/tag/v1.0.0)
 - **Final Tag:** `final`

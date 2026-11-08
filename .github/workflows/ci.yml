@@ -106,34 +106,7 @@ jobs:
       - name: Run Evaluation on validation.jsonl
         run: |
           mkdir -p results
-          python -c "
-          import json, torch
-          from transformers import AutoModelForCausalLM, AutoTokenizer
-
-          tokenizer = AutoTokenizer.from_pretrained('models/v1')
-          if tokenizer.pad_token is None:
-              tokenizer.pad_token = tokenizer.eos_token
-          model = AutoModelForCausalLM.from_pretrained('models/v1')
-          model.eval()
-
-          preds = []
-          with open('data/validation.jsonl', encoding='utf-8') as f:
-              for line in f:
-                  item = json.loads(line)
-                  prompt = f'Command: {item[\"text\"]}\nJSON:'
-                  inputs = tokenizer(prompt, return_tensors='pt')
-                  with torch.no_grad():
-                      out = model.generate(**inputs, max_new_tokens=64, pad_token_id=tokenizer.eos_token_id, do_sample=False)
-                  text = tokenizer.decode(out[0], skip_special_tokens=True)
-                  raw = text.split('JSON:', 1)[1].strip() if 'JSON:' in text else text[len(prompt):].strip()
-                  if '}' in raw:
-                      raw = raw[:raw.index('}') + 1]
-                  preds.append({'id': item['id'], 'prediction': raw})
-
-          with open('results/student_validation.jsonl', 'w', encoding='utf-8') as f:
-              for p in preds:
-                  f.write(json.dumps(p) + '\n')
-          "
+          python training/evaluate.py --mode local --model models/v1 --val_file data/validation.jsonl --out_file results/student_validation.jsonl
 
       - name: Quality Gate (score.py --min-validity 95)
         run: |

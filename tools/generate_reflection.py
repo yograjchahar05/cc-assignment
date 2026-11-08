@@ -41,7 +41,7 @@ class ReflectionCanvas(canvas.Canvas):
         self.setLineWidth(0.5)
         self.line(36, 38, 559, 38)
         
-        self.drawString(36, 26, "Yograj Chahar | https://github.com/yograjchahar05/cc-assignment.git")
+        self.drawString(36, 26, "Yash Chahar (230103020) | https://github.com/yograjchahar05/cc-assignment.git")
         page_str = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(559, 26, page_str)
         self.restoreState()
@@ -127,8 +127,8 @@ def build_reflection(filename="report/reflection.pdf"):
     story.append(Paragraph("Cloud Computing (CS3081) — Comprehensive Project Reflection", title_style))
     
     meta_data = [
-        [Paragraph("<b>Student Name:</b> Yograj Chahar", table_cell),
-         Paragraph("<b>Roll Number:</b> [Roll Number]", table_cell),
+        [Paragraph("<b>Student Name:</b> Yash Chahar", table_cell),
+         Paragraph("<b>Roll Number:</b> 230103020", table_cell),
          Paragraph("<b>Repository:</b> github.com/yograjchahar05/cc-assignment", table_cell),
          Paragraph("<b>Release:</b> v1.0.0", table_cell)]
     ]
@@ -323,6 +323,12 @@ def build_reflection(filename="report/reflection.pdf"):
     # Build document
     doc.build(story, canvasmaker=ReflectionCanvas)
     print(f"Successfully generated {filename} with ReflectionCanvas!")
+    
+    # Also write strictly formatted <roll_number>.pdf as required by Task 8
+    roll_pdf = "report/230103020.pdf"
+    import shutil
+    shutil.copyfile(filename, roll_pdf)
+    print(f"Copied to mandatory submission filename: {roll_pdf}")
 
 if __name__ == "__main__":
     build_reflection()
